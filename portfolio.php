@@ -59,17 +59,17 @@ register_deactivation_hook( __FILE__, 'deactivate_portfolio_plugin' );
 function create_portfolio_posttype() {
 
     $labels = array(
-        'name'              => _x( 'Groups', 'taxonomy general name', 'textdomain' ),
-        'singular_name'     => _x( 'Group', 'taxonomy singular name', 'textdomain' ),
-        'search_items'      => __( 'Search Groups', 'textdomain' ),
-        'all_items'         => __( 'All Groups', 'textdomain' ),
-        'parent_item'       => __( 'Parent Group', 'textdomain' ),
-        'parent_item_colon' => __( 'Parent Group:', 'textdomain' ),
-        'edit_item'         => __( 'Edit Group', 'textdomain' ),
-        'update_item'       => __( 'Update Group', 'textdomain' ),
-        'add_new_item'      => __( 'Add New Group', 'textdomain' ),
-        'new_item_name'     => __( 'New Group Name', 'textdomain' ),
-        'menu_name'         => __( 'Groups', 'textdomain' ),
+        'name'              => _x( 'Types', 'taxonomy general name', 'textdomain' ),
+        'singular_name'     => _x( 'Type', 'taxonomy singular name', 'textdomain' ),
+        'search_items'      => __( 'Search Types', 'textdomain' ),
+        'all_items'         => __( 'All Types', 'textdomain' ),
+        'parent_item'       => __( 'Parent Type', 'textdomain' ),
+        'parent_item_colon' => __( 'Parent Type:', 'textdomain' ),
+        'edit_item'         => __( 'Edit Type', 'textdomain' ),
+        'update_item'       => __( 'Update Type', 'textdomain' ),
+        'add_new_item'      => __( 'Add New Type', 'textdomain' ),
+        'new_item_name'     => __( 'New Type Name', 'textdomain' ),
+        'menu_name'         => __( 'Types', 'textdomain' ),
     );
 
     $args = array(
@@ -78,10 +78,10 @@ function create_portfolio_posttype() {
         'show_ui'           => true,
         'show_admin_column' => true,
         'query_var'         => true,
-        'rewrite'           => array( 'slug' => 'group' ),
+        'rewrite'           => array( 'slug' => 'type' ),
     );
 
-    register_taxonomy('group', array( 'portfolio' ), $args);
+    register_taxonomy('type', array( 'portfolio' ), $args);
 
     // Set UI labels for Custom Post Type
     $labels = array(
@@ -105,7 +105,7 @@ function create_portfolio_posttype() {
         'description'         => __( 'Events from Flowland.', 'twentythirteen' ),
         'labels'              => $labels,
         'supports'            => array( 'title', 'editor', 'excerpt', 'custom-fields', 'thumbnail'),
-        'taxonomies'          => array( 'groups' ),
+        'taxonomies'          => array( 'type' ),
         'hierarchical'        => false,
         'public'              => true,
         'show_ui'             => true,
@@ -123,6 +123,96 @@ function create_portfolio_posttype() {
 
     // Register portfolio post type.
     register_post_type('portfolio', $args);
+
+
+
 }
 
 add_action( 'init', 'create_portfolio_posttype' );
+
+
+function portfolio_metabox()
+{
+    global $post;
+    echo '<input type="hidden" name="portfolio_meta_noncename" id="portfolio_meta_noncename" value="'.wp_create_nonce( plugin_basename(__FILE__) ) .'" />';
+
+    $meta = get_post_meta(get_the_ID());
+    echo '<h4 style="margin-bottom: 5px;">Client:</h4>';
+    echo '<input type="text" name="client" value="'.$meta['client'][0].'" class="widefat" />';
+    echo '<h4 style="margin-bottom: 5px;">Client website:</h4>';
+    echo '<input type="text" name="client-website" value="'.$meta['client-website'][0].'" class="widefat" />';
+    echo '<h4 style="margin-bottom: 5px;">Project wesbite:</h4>';
+    echo '<input type="text" name="project-website" value="'.$meta['project-website'][0].'" class="widefat" />';
+    echo '<h4 style="margin-bottom: 5px;">Time period:</h4>';
+    echo '<input type="text" name="time-period" value="'.$meta['time-period'][0].'" class="widefat" />';
+}
+
+function init_metaboxes()
+{
+    add_meta_box('portfolio_metabox', 'Project details', 'portfolio_metabox', 'portfolio', 'side', 'default');
+}
+
+add_action( 'add_meta_boxes', 'init_metaboxes' );
+
+
+// Save the Metabox Data
+function tl_save_portfolio_meta($post_id, $post) {
+
+    // verify this came from the our screen and with proper authorization,
+    // because save_post can be triggered at other times
+    if ( !wp_verify_nonce( $_POST['portfolio_meta_noncename'], plugin_basename(__FILE__) )) {
+        return $post->ID;
+    }
+
+    // Is the user allowed to edit the post or page?
+    if ( !current_user_can( 'edit_post', $post->ID ))
+        return $post->ID;
+
+    // OK, we're authenticated: we need to find and save the data
+    // We'll put it into an array to make it easier to loop though.
+
+    $client          = $_POST['client'];
+    $client_website  = $_POST['client-website'];
+    $project_website = $_POST['project-website'];
+    $time_period     = $_POST['time-period'];
+
+    if( $post->post_type == 'revision' ) return; // Don't store custom data twice
+
+    // Save client
+    if(get_post_meta($post->ID, 'client', FALSE)) { // If the custom field already has a value
+        update_post_meta($post->ID, 'client', $client);
+    } else { // If the custom field doesn't have a value
+        add_post_meta($post->ID, 'client', $client);
+    }
+    if(!$client) delete_post_meta($post->ID, 'client'); // Delete if blank
+
+    // Save client website
+    if(get_post_meta($post->ID, 'client-website', FALSE)) { // If the custom field already has a value
+        update_post_meta($post->ID, 'client-website', $client_website);
+    } else { // If the custom field doesn't have a value
+        add_post_meta($post->ID, 'client-website', $client_website);
+    }
+    if(!$client_website) delete_post_meta($post->ID, 'client-website'); // Delete if blank
+
+    // Save project website
+    if(get_post_meta($post->ID, 'project-website', FALSE)) { // If the custom field already has a value
+        update_post_meta($post->ID, 'project-website', $project_website);
+    } else { // If the custom field doesn't have a value
+        add_post_meta($post->ID, 'project-website', $project_website);
+    }
+    if(!$project_website) delete_post_meta($post->ID, 'project-website'); // Delete if blank
+
+    // Save time period
+    if(get_post_meta($post->ID, 'time-period', FALSE)) { // If the custom field already has a value
+        update_post_meta($post->ID, 'time-period', $time_period);
+    } else { // If the custom field doesn't have a value
+        add_post_meta($post->ID, 'time-period', $time_period);
+    }
+    if(!$time_period) delete_post_meta($post->ID, 'time-period'); // Delete if blank
+
+}
+
+add_action('save_post_portfolio', 'tl_save_portfolio_meta', 1, 2); // save the custom fields
+
+
+
